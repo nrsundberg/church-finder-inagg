@@ -24,6 +24,10 @@ const jsonLd = JSON.stringify({
   },
 });
 
+export async function loader({ context }: Route.LoaderArgs) {
+  return { turnstileSiteKey: context.cloudflare.env.CF_TURNSTILE_SITE_KEY ?? "" };
+}
+
 export const meta: Route.MetaFunction = () => [
   { title: SITE_TITLE },
   { name: "description", content: SITE_DESCRIPTION },
@@ -96,7 +100,7 @@ export function ErrorBoundary() {
   );
 }
 
-export default function App() {
+export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <html lang="en" className="dark">
       <head>
@@ -111,7 +115,7 @@ export default function App() {
       </head>
       <body className="min-h-screen bg-zinc-950 text-zinc-100">
         <Outlet />
-        <Footer />
+        <Footer siteKey={loaderData.turnstileSiteKey} />
         <ScrollRestoration />
         <Scripts />
       </body>

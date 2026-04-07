@@ -1,6 +1,14 @@
+import { useState } from "react";
 import { Link } from "react-router";
+import { SuggestionModal } from "~/components/suggestion-modal";
 
-export function Footer() {
+interface Props {
+  siteKey: string;
+}
+
+export function Footer({ siteKey }: Props) {
+  const [modalOpen, setModalOpen] = useState(false);
+
   return (
     <footer className="border-t border-zinc-800 bg-zinc-900 text-zinc-400 text-sm px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-4">
@@ -13,7 +21,7 @@ export function Footer() {
           Southern Baptists find reformed, healthy churches in unfamiliar areas.
           Not affiliated with any of these organizations.
         </p>
-        <nav className="flex flex-wrap gap-x-5 gap-y-2 text-zinc-400">
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-zinc-400">
           <Link to="/about" className="hover:text-zinc-100 transition-colors">
             About
           </Link>
@@ -41,11 +49,19 @@ export function Footer() {
           >
             9Marks ↗
           </a>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="ml-auto text-zinc-500 hover:text-zinc-100 transition-colors"
+          >
+            Want to see another church finder incorporated?
+          </button>
         </nav>
         <p className="text-zinc-600 text-xs">
           &copy; {new Date().getFullYear()} basedchurchfinder.com
         </p>
       </div>
+      <SuggestionModal open={modalOpen} onClose={() => setModalOpen(false)} siteKey={siteKey} />
     </footer>
   );
 }

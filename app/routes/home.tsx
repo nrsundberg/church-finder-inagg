@@ -6,7 +6,6 @@ import type { ChurchResult } from "~/services/search.server";
 import { SearchForm } from "~/components/search-form";
 import { ChurchList } from "~/components/church-list";
 import { MapWrapper } from "~/components/map-wrapper";
-import { SuggestionModal } from "~/components/suggestion-modal";
 import type { Route } from "./+types/home";
 
 export const meta: Route.MetaFunction = ({ data }) => {
@@ -34,10 +33,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   });
   const sbcLastUpdated = lastSbcLog?.startedAt?.toISOString() ?? null;
 
-  const turnstileSiteKey = context.cloudflare.env.CF_TURNSTILE_SITE_KEY ?? "";
-
   if (!q) {
-    return { center: null, radius: r, minSources: min, query: "", error: null, sbcLastUpdated, turnstileSiteKey };
+    return { center: null, radius: r, minSources: min, query: "", error: null, sbcLastUpdated };
   }
 
   const qLat = parseFloat(url.searchParams.get("lat") ?? "");
@@ -58,11 +55,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       query: q,
       error: `Could not find "${q}". Try a city name, state, or ZIP code.`,
       sbcLastUpdated,
-      turnstileSiteKey,
     };
   }
 
-  return { center, radius: r, minSources: min, query: q, error: null, sbcLastUpdated, turnstileSiteKey };
+  return { center, radius: r, minSources: min, query: q, error: null, sbcLastUpdated };
 }
 
 function formatSbcAge(iso: string | null): string {
@@ -74,7 +70,7 @@ function formatSbcAge(iso: string | null): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { center, radius, minSources, query, error, sbcLastUpdated, turnstileSiteKey } = loaderData;
+  const { center, radius, minSources, query, error, sbcLastUpdated } = loaderData;
   const navigation = useNavigation();
   const isNavigating = navigation.state === "loading";
 
@@ -82,7 +78,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [liveFetching, setLiveFetching] = useState(false);
   const [liveSources, setLiveSources] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -143,13 +138,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <div className="w-full">
               <SearchForm query={query} radius={radius} minSources={minSources} />
             </div>
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="flex-shrink-0 text-xs text-zinc-400 hover:text-zinc-100 border border-zinc-700 hover:border-zinc-500 rounded-md px-2.5 py-1.5 transition-colors whitespace-nowrap"
-            >
-              Want to see another church finder incorporated?
-            </button>
           </div>
           {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
           {fetchingLabel && (
@@ -227,11 +215,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </main>
-      <SuggestionModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        siteKey={turnstileSiteKey}
-      />
     </div>
   );
 }

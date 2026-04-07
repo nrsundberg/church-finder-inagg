@@ -24,6 +24,7 @@ export function SuggestionModal({ open, onClose, siteKey }: Props) {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [body, setBody] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -31,6 +32,7 @@ export function SuggestionModal({ open, onClose, siteKey }: Props) {
 
   const wordCount = body.trim() === "" ? 0 : body.trim().split(/\s+/).filter(Boolean).length;
   const overLimit = wordCount > 500;
+  const emailInvalid = emailTouched && email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   // Open/close dialog
   useEffect(() => {
@@ -57,6 +59,7 @@ export function SuggestionModal({ open, onClose, siteKey }: Props) {
     if (!open) {
       setName("");
       setEmail("");
+      setEmailTouched(false);
       setBody("");
       setStatus("idle");
       setErrorMsg("");
@@ -139,7 +142,9 @@ export function SuggestionModal({ open, onClose, siteKey }: Props) {
   }
 
   const inputCls =
-    "bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full text-sm";
+    "bg-zinc-800 border rounded-md px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 w-full text-sm";
+  const fieldBorder = "border-zinc-700 focus:ring-blue-500";
+  const errorBorder = "border-red-500 focus:ring-red-500";
 
   return (
     <dialog
@@ -151,12 +156,15 @@ export function SuggestionModal({ open, onClose, siteKey }: Props) {
       className="bg-zinc-900 text-zinc-100 rounded-xl border border-zinc-700 p-6 w-full max-w-lg mx-auto shadow-2xl backdrop:bg-black/60 open:flex open:flex-col"
       style={{ margin: "auto" }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold">Suggest a Church Directory</h2>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-base font-semibold">Suggest a Church Directory</h2>
+          <p className="text-xs text-zinc-400 mt-0.5">or any other thoughts and comments</p>
+        </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-zinc-400 hover:text-zinc-100 transition-colors"
+          className="text-zinc-400 hover:text-zinc-100 transition-colors ml-4 flex-shrink-0"
           aria-label="Close"
         >
           <X size={18} />
@@ -179,7 +187,7 @@ export function SuggestionModal({ open, onClose, siteKey }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
-              className={inputCls}
+              className={`${inputCls} ${fieldBorder}`}
               required
             />
           </div>
@@ -193,8 +201,9 @@ export function SuggestionModal({ open, onClose, siteKey }: Props) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => setEmailTouched(true)}
               placeholder="you@example.com"
-              className={inputCls}
+              className={`${inputCls} ${emailInvalid ? errorBorder : fieldBorder}`}
               required
             />
           </div>
@@ -209,7 +218,7 @@ export function SuggestionModal({ open, onClose, siteKey }: Props) {
               onChange={(e) => setBody(e.target.value)}
               placeholder="Which church directory or network would you like to see added? Any other feedback?"
               rows={5}
-              className={`${inputCls} resize-y`}
+              className={`${inputCls} ${overLimit ? errorBorder : fieldBorder} resize-y`}
               required
             />
             <p className={`text-xs mt-1 ${overLimit ? "text-red-400" : "text-zinc-500"}`}>
