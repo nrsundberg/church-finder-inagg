@@ -1,0 +1,51 @@
+{
+  "name": "church-finder-inagg",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "prisma generate && react-router build",
+    "dev": "react-router dev",
+    "deploy": "npm run build && wrangler deploy && node scripts/set-unbound.mjs",
+    "d1:create": "wrangler d1 create church-finder-inagg",
+    "d1:migrate": "wrangler d1 migrations apply church-finder-inagg",
+    "d1:migrate:local": "wrangler d1 migrations apply church-finder-inagg --local",
+    "d1:create-migration": "wrangler d1 migrations create church-finder-inagg",
+    "typecheck": "react-router typegen && tsc"
+  },
+  "dependencies": {
+    "@heroui/react": "^3.0.1",
+    "@prisma/adapter-d1": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "@tailwindcss/vite": "^4.2.2",
+    "framer-motion": "^12.38.0",
+    "isbot": "^5.1.37",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.7.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-leaflet": "^5.0.0",
+    "react-router": "^7.13.2",
+    "tiny-invariant": "^1.3.3",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "@libsql/client": "^0.14.0",
+    "@prisma/adapter-libsql": "^7.0.0",
+    "@react-router/dev": "^7.13.2",
+    "@types/leaflet": "^1.9.4",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "prisma": "^7.0.0",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-devtools-json": "^1.0.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

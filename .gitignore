@@ -1,0 +1,11 @@
+node_modules/
+build/
+.react-router/
+.wrangler/
+*.db
+*.db-shm
+*.db-wal
+.dev.vars
+.env
+dist/
+app/db/

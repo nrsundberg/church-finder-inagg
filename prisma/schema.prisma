@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/db"
+  runtime  = "cloudflare"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Church {
+  id           Int      @id @default(autoincrement())
+  name         String
+  nameNorm     String
+  address      String?
+  city         String?
+  state        String?
+  zip          String?
+  lat          Float
+  lng          Float
+  phone        String?
+  email        String?
+  website      String?
+
+  isSbc        Boolean  @default(false)
+  isFounders   Boolean  @default(false)
+  isNineMarks  Boolean  @default(false)
+
+  sbcId        String?  @unique
+  foundersId   String?  @unique
+  nineMarksId  String?  @unique
+
+  sbcUrl       String?
+  foundersUrl  String?
+  nineMarksUrl String?
+
+  sourceCount  Int      @default(1)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([lat, lng])
+  @@index([sourceCount])
+}
+
+model ScrapeLog {
+  id        Int      @id @default(autoincrement())
+  source    String
+  status    String
+  count     Int      @default(0)
+  error     String?
+  startedAt DateTime @default(now())
+  duration  Int?
+}
+
+model SearchLog {
+  id          Int      @id @default(autoincrement())
+  lat         Float
+  lng         Float
+  radiusMiles Int
+  searchedAt  DateTime @default(now())
+
+  @@index([searchedAt])
+}
+
+model ScrapeState {
+  id         String   @id
+  page       Int      @default(1)
+  totalPages Int      @default(0)
+  nonce      String?
+  updatedAt  DateTime @updatedAt
+}

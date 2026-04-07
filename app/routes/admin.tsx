@@ -1,0 +1,361 @@
+import { Form, redirect, useActionData, useNavigation, useRevalidator } from "react-router";
+import { useEffect } from "react";
+import { getPrisma } from "~/db.server";
+import { runCrossReference } from "~/services/scrapers/cross-reference";
+import { SearchHeatmapWrapper } from "~/components/search-heatmap-wrapper";
+import { getSessionStorage } from "~/sessions.server";
+import type { Route } from "./+types/admin";
+
+export const meta: Route.MetaFunction = () => [{ title: "Admin — Church Finder" }];
+
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const adminPassword = context.cloudflare.env.ADMIN_PASSWORD;
+  if (!adminPassword) throw new Error("ADMIN_PASSWORD env var not set");
+
+  const isSecure = new URL(request.url).protocol === "https:";
+  const { getSession } = getSessionStorage(adminPassword, isSecure);
+  const session = await getSession(request.headers.get("Cookie"));
+
+  const started = new URL(request.url).searchParams.get("started") ?? null;
+
+  if (!session.get("authed")) {
+    return { authed: false as const, stats: null, started: null };
+  }
+
+  const prisma = getPrisma(context);
+
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [total, sbcCount, foundersCount, nineMarksCount, multiSourceCount, recentLogs, searchesAllTime, searchesPastWeek, recentSearches, searchPoints] =
+    await Promise.all([
+      prisma.church.count(),
+      prisma.church.count({ where: { isSbc: true } }),
+      prisma.church.count({ where: { isFounders: true } }),
+      prisma.church.count({ where: { isNineMarks: true } }),
+      prisma.church.count({ where: { sourceCount: { gte: 2 } } }),
+      prisma.scrapeLog.findMany({ orderBy: { startedAt: "desc" }, take: 20 }),
+      prisma.searchLog.count(),
+      prisma.searchLog.count({ where: { searchedAt: { gte: oneWeekAgo } } }),
+      prisma.searchLog.findMany({ orderBy: { searchedAt: "desc" }, take: 20 }),
+      prisma.searchLog.findMany({ select: { lat: true, lng: true } }),
+    ]);
+
+  return {
+    authed: true as const,
+    started,
+    stats: { total, sbcCount, foundersCount, nineMarksCount, multiSourceCount, recentLogs, searchesAllTime, searchesPastWeek, recentSearches, searchPoints },
+  };
+}
+
+export async function action({ request, context }: Route.ActionArgs) {
+  const adminPassword = context.cloudflare.env.ADMIN_PASSWORD;
+  if (!adminPassword) throw new Error("ADMIN_PASSWORD env var not set");
+
+  const isSecure = new URL(request.url).protocol === "https:";
+  const { getSession, commitSession, destroySession } = getSessionStorage(adminPassword, isSecure);
+
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  const session = await getSession(request.headers.get("Cookie"));
+
+  if (intent === "logout") {
+    return redirect("/admin", {
+      headers: { "Set-Cookie": await destroySession(session) },
+    });
+  }
+
+  if (intent === "cross-reference") {
+    if (!session.get("authed")) return redirect("/admin");
+    const prisma = getPrisma(context);
+    context.cloudflare.ctx.waitUntil(runCrossReference(prisma));
+    return redirect("/admin?started=cross-reference");
+  }
+
+  if (intent === "sbc-scrape") {
+    if (!session.get("authed")) return redirect("/admin");
+    const { runScrape } = await import("~/services/scrapers/orchestrator");
+    context.cloudflare.ctx.waitUntil(runScrape(context.cloudflare.env.D1_DATABASE, "sbc", true));
+    return redirect("/admin?started=sbc-scrape");
+  }
+
+  // Login
+  const password = formData.get("password");
+  if (password !== adminPassword) {
+    return { error: "Incorrect password" };
+  }
+
+  session.set("authed", true);
+  return redirect("/admin", {
+    headers: { "Set-Cookie": await commitSession(session) },
+  });
+}
+
+export default function Admin({ loaderData }: Route.ComponentProps) {
+  const actionData = useActionData();
+  if (!loaderData.authed) {
+    return <LoginForm error={(actionData as any)?.error} />;
+  }
+
+  const { stats, started } = loaderData;
+  const { revalidate } = useRevalidator();
+  const hasRunning = stats?.recentLogs.some((l) => l.status === "running") ?? false;
+
+  useEffect(() => {
+    if (!hasRunning) return;
+    const id = setInterval(revalidate, 3000);
+    return () => clearInterval(id);
+  }, [hasRunning, revalidate]);
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold text-zinc-100">Admin</h1>
+          <form method="post">
+            <input type="hidden" name="intent" value="logout" />
+            <button
+              type="submit"
+              className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              Log out
+            </button>
+          </form>
+        </div>
+
+        {/* Search stats */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+            Searches
+          </h2>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <StatCard label="All time" value={stats!.searchesAllTime} />
+            <StatCard label="Past 7 days" value={stats!.searchesPastWeek} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Heat map */}
+            <div className="h-72 rounded-lg overflow-hidden border border-zinc-800">
+              <SearchHeatmapWrapper points={stats!.searchPoints} />
+            </div>
+            {/* Recent searches table */}
+            <div className="rounded-lg border border-zinc-800 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-900 text-zinc-400">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium">Lat</th>
+                    <th className="px-4 py-2 text-left font-medium">Lng</th>
+                    <th className="px-4 py-2 text-left font-medium">Radius</th>
+                    <th className="px-4 py-2 text-left font-medium">When</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {stats!.recentSearches.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-center text-zinc-500">
+                        No searches yet
+                      </td>
+                    </tr>
+                  ) : (
+                    stats!.recentSearches.map((s) => (
+                      <tr key={s.id} className="bg-zinc-950 hover:bg-zinc-900 transition-colors">
+                        <td className="px-4 py-2 font-mono text-zinc-300">{s.lat.toFixed(4)}</td>
+                        <td className="px-4 py-2 font-mono text-zinc-300">{s.lng.toFixed(4)}</td>
+                        <td className="px-4 py-2 text-zinc-400">{s.radiusMiles} mi</td>
+                        <td className="px-4 py-2 text-zinc-400 text-xs">
+                          {new Date(s.searchedAt).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* Church counts */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+            Church Counts
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <StatCard label="Total" value={stats!.total} />
+            <StatCard label="SBC" value={stats!.sbcCount} />
+            <StatCard label="Founders" value={stats!.foundersCount} />
+            <StatCard label="9Marks" value={stats!.nineMarksCount} />
+            <StatCard label="Multi-source (2+)" value={stats!.multiSourceCount} />
+          </div>
+        </section>
+
+        {/* Maintenance actions */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+            Maintenance
+          </h2>
+          <div className="flex flex-col gap-3">
+            <MaintenanceCard
+              title="SBC Scrape"
+              description="Fetches all 37k SBC churches in parallel (8 concurrent pages) and upserts into D1. Takes ~3 minutes. The daily cron skips this if data is less than 7 days old."
+              intent="sbc-scrape"
+              started={started === "sbc-scrape"}
+            />
+            <MaintenanceCard
+              title="Cross-Reference Merge"
+              description="Scans all churches for duplicate records that refer to the same physical location (same normalized name, within 0.5 mi). Merges same-source duplicates first, then combines records across sources into a single multi-badge entry."
+              intent="cross-reference"
+              started={started === "cross-reference"}
+            />
+          </div>
+        </section>
+
+        {/* Scrape logs */}
+        <section>
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+            Recent Scrape Logs
+          </h2>
+          <div className="rounded-lg border border-zinc-800 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-900 text-zinc-400">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium">Source</th>
+                  <th className="px-4 py-2 text-left font-medium">Status</th>
+                  <th className="px-4 py-2 text-right font-medium">Count</th>
+                  <th className="px-4 py-2 text-right font-medium">Duration</th>
+                  <th className="px-4 py-2 text-left font-medium">Started</th>
+                  <th className="px-4 py-2 text-left font-medium">Error</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800">
+                {stats!.recentLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-zinc-500">
+                      No scrape logs yet
+                    </td>
+                  </tr>
+                ) : (
+                  stats!.recentLogs.map((log) => (
+                    <tr key={log.id} className="bg-zinc-950 hover:bg-zinc-900 transition-colors">
+                      <td className="px-4 py-2 font-mono text-zinc-300">{log.source}</td>
+                      <td className="px-4 py-2">
+                        <StatusBadge status={log.status} />
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums text-zinc-300">
+                        {log.count.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums text-zinc-400">
+                        {log.duration != null ? `${(log.duration / 1000).toFixed(1)}s` : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-zinc-400 text-xs">
+                        {new Date(log.startedAt).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2 text-red-400 text-xs max-w-xs truncate">
+                        {log.error ?? ""}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function LoginForm({ error }: { error?: string }) {
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <h1 className="text-xl font-bold text-zinc-100 mb-6 text-center">Admin Login</h1>
+        <form method="post" className="space-y-4">
+          <div>
+            <label htmlFor="password" className="block text-sm text-zinc-400 mb-1">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoFocus
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+            />
+          </div>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button
+            type="submit"
+            className="w-full bg-zinc-700 hover:bg-zinc-600 text-zinc-100 rounded-md px-4 py-2 text-sm font-medium transition-colors"
+          >
+            Log in
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
+      <div className="text-xs text-zinc-400 mb-1">{label}</div>
+      <div className="text-2xl font-bold tabular-nums text-zinc-100">
+        {value.toLocaleString()}
+      </div>
+    </div>
+  );
+}
+
+function MaintenanceCard({
+  title,
+  description,
+  intent,
+  started,
+}: {
+  title: string;
+  description: string;
+  intent: string;
+  started: boolean;
+}) {
+  const navigation = useNavigation();
+  const isSubmitting =
+    navigation.state === "submitting" &&
+    navigation.formData?.get("intent") === intent;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-start justify-between gap-4">
+      <div>
+        <p className="text-sm font-medium text-zinc-200 mb-1">{title}</p>
+        <p className="text-xs text-zinc-400">{description}</p>
+        {started && (
+          <p className="text-xs text-green-400 mt-2">
+            Running in background — refresh in a moment to see updated stats.
+          </p>
+        )}
+      </div>
+      <Form method="post" className="shrink-0">
+        <input type="hidden" name="intent" value={intent} />
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-100 rounded-md px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+        >
+          {isSubmitting ? "Starting…" : "Run"}
+        </button>
+      </Form>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    success: "bg-green-900 text-green-300",
+    error: "bg-red-900 text-red-300",
+    running: "bg-yellow-900 text-yellow-300",
+  };
+  const cls = colors[status] ?? "bg-zinc-800 text-zinc-300";
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
+      {status}
+    </span>
+  );
+}
