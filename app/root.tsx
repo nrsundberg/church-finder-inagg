@@ -46,11 +46,28 @@ export const meta: Route.MetaFunction = () => [
   { name: "twitter:card", content: "summary" },
   { name: "twitter:title", content: SITE_TITLE },
   { name: "twitter:description", content: SITE_DESCRIPTION },
+  // Theme / PWA
+  { name: "theme-color", content: "#09090b" },
+  { name: "msapplication-TileColor", content: "#09090b" },
+  { name: "mobile-web-app-capable", content: "yes" },
+  { name: "apple-mobile-web-app-capable", content: "yes" },
+  { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+  { name: "apple-mobile-web-app-title", content: "Church Finder" },
 ];
 
 export const links: Route.LinksFunction = () => [
   { rel: "stylesheet", href: styles },
+  // Favicon cascade: SVG (modern), PNG fallbacks, ICO (legacy)
   { rel: "icon", href: "/cross.svg", type: "image/svg+xml" },
+  { rel: "icon", href: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+  { rel: "icon", href: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+  { rel: "shortcut icon", href: "/favicon.ico" },
+  // Apple Touch Icons — light and dark
+  { rel: "apple-touch-icon", href: "/icons/apple-touch-icon-light.png", media: "(prefers-color-scheme: light)" },
+  { rel: "apple-touch-icon", href: "/icons/apple-touch-icon-dark.png", media: "(prefers-color-scheme: dark)" },
+  { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+  // PWA manifest
+  { rel: "manifest", href: "/site.webmanifest" },
   { rel: "canonical", href: SITE_URL },
 ];
 

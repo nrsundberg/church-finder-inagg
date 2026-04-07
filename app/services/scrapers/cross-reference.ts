@@ -108,9 +108,15 @@ export async function runCrossReference(prisma: PrismaClient): Promise<number> {
         if (aSource === bSource) continue;
 
         if (a.lat === 0 || b.lat === 0) continue;
-        if (haversine(a.lat, a.lng, b.lat, b.lng) > 0.5) continue;
+        // SBC coordinates are city-center only, so use a loose threshold for those pairs
+        // to avoid false positives across different cities (e.g. Saints Church MD vs OR).
+        const distanceLimit = (a.isSbc || b.isSbc) ? 25 : 0.5;
+        if (haversine(a.lat, a.lng, b.lat, b.lng) > distanceLimit) continue;
 
-        // Merge b into a (a may already be sourceCount=2)
+        // Merge b into a (a may already be sourceCount=2).
+        // When one side is SBC, prefer the non-SBC record's lat/lng and address
+        // because SBC coords are city-center, not the actual building.
+        const nonSbc = a.isSbc && !b.isSbc ? b : !a.isSbc && b.isSbc ? a : null;
         const merged = {
           isSbc: a.isSbc || b.isSbc,
           isFounders: a.isFounders || b.isFounders,
@@ -121,10 +127,12 @@ export async function runCrossReference(prisma: PrismaClient): Promise<number> {
           sbcUrl: a.sbcUrl ?? b.sbcUrl,
           foundersUrl: a.foundersUrl ?? b.foundersUrl,
           nineMarksUrl: a.nineMarksUrl ?? b.nineMarksUrl,
-          address: a.address ?? b.address,
-          city: a.city ?? b.city,
-          state: a.state ?? b.state,
-          zip: a.zip ?? b.zip,
+          lat: nonSbc ? nonSbc.lat : a.lat,
+          lng: nonSbc ? nonSbc.lng : a.lng,
+          address: nonSbc ? (nonSbc.address ?? a.address ?? b.address) : (a.address ?? b.address),
+          city: nonSbc ? (nonSbc.city ?? a.city ?? b.city) : (a.city ?? b.city),
+          state: nonSbc ? (nonSbc.state ?? a.state ?? b.state) : (a.state ?? b.state),
+          zip: nonSbc ? (nonSbc.zip ?? a.zip ?? b.zip) : (a.zip ?? b.zip),
           phone: a.phone ?? b.phone,
           website: a.website ?? b.website,
           sourceCount:

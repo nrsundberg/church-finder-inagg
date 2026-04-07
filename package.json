@@ -10,7 +10,8 @@
     "d1:migrate": "wrangler d1 migrations apply church-finder-inagg",
     "d1:migrate:local": "wrangler d1 migrations apply church-finder-inagg --local",
     "d1:create-migration": "wrangler d1 migrations create church-finder-inagg",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "generate-icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@heroui/react": "^3.0.1",
@@ -38,7 +39,9 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "prisma": "^7.0.0",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.2.2",
+    "to-ico": "^1.1.5",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-devtools-json": "^1.0.0",
