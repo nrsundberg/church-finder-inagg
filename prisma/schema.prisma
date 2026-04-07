@@ -70,3 +70,14 @@ model ScrapeState {
   nonce      String?
   updatedAt  DateTime @updatedAt
 }
+
+model Submission {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  body      String
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

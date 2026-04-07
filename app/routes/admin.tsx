@@ -1,5 +1,5 @@
 import { Form, redirect, useActionData, useNavigation, useRevalidator } from "react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getPrisma } from "~/db.server";
 import { SearchHeatmapWrapper } from "~/components/search-heatmap-wrapper";
 import { getSessionStorage } from "~/sessions.server";
@@ -42,7 +42,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const [total, sbcCount, foundersCount, nineMarksCount, multiSourceCount, recentLogs, searchesAllTime, searchesPastWeek, recentSearches, searchPoints, sbcState, sbcLogs] =
+  const [total, sbcCount, foundersCount, nineMarksCount, multiSourceCount, recentLogs, searchesAllTime, searchesPastWeek, recentSearches, searchPoints, sbcState, sbcLogs, submissions] =
     await Promise.all([
       prisma.church.count(),
       prisma.church.count({ where: { isSbc: true } }),
@@ -60,12 +60,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         orderBy: { startedAt: "asc" },
         take: 10,
       }),
+      prisma.submission.findMany({
+        orderBy: { createdAt: "desc" },
+        select: { id: true, name: true, email: true, body: true, createdAt: true, ipAddress: true },
+      }),
     ]);
 
   return {
     authed: true as const,
     started,
-    stats: { total, sbcCount, foundersCount, nineMarksCount, multiSourceCount, recentLogs, searchesAllTime, searchesPastWeek, recentSearches, searchPoints, sbcState, sbcLogs },
+    stats: { total, sbcCount, foundersCount, nineMarksCount, multiSourceCount, recentLogs, searchesAllTime, searchesPastWeek, recentSearches, searchPoints, sbcState, sbcLogs, submissions },
   };
 }
 
@@ -229,6 +233,14 @@ export default function Admin({ loaderData }: Route.ComponentProps) {
               started={started === "cross-reference"}
             />
           </div>
+        </section>
+
+        {/* Submissions */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+            Submissions ({stats!.submissions.length})
+          </h2>
+          <SubmissionsSection submissions={stats!.submissions} />
         </section>
 
         {/* Scrape logs */}
@@ -479,6 +491,85 @@ function MaintenanceCard({
           {isSubmitting ? "Starting…" : "Run"}
         </button>
       </Form>
+    </div>
+  );
+}
+
+type SubmissionItem = {
+  id: number;
+  name: string;
+  email: string;
+  body: string;
+  createdAt: Date | string;
+  ipAddress: string | null;
+};
+
+function SubmissionsSection({ submissions }: { submissions: SubmissionItem[] }) {
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  if (submissions.length === 0) {
+    return (
+      <p className="text-zinc-500 text-sm bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-6 text-center">
+        No submissions yet.
+      </p>
+    );
+  }
+
+  const grouped = submissions.reduce<Record<string, SubmissionItem[]>>((acc, s) => {
+    const day = new Date(s.createdAt).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    (acc[day] ??= []).push(s);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      {Object.keys(grouped).map((day) => (
+        <div key={day}>
+          <p className="text-xs text-zinc-500 font-medium mb-2">{day}</p>
+          <div className="rounded-lg border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+            {grouped[day].map((s) => {
+              const isExpanded = expanded.has(s.id);
+              const toggle = () =>
+                setExpanded((prev) => {
+                  const next = new Set(prev);
+                  isExpanded ? next.delete(s.id) : next.add(s.id);
+                  return next;
+                });
+              const preview = s.body.length > 120 ? s.body.slice(0, 120) + "…" : s.body;
+              return (
+                <div key={s.id} className="bg-zinc-950 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-200">{s.name}</p>
+                      <p className="text-xs text-zinc-400">{s.email}</p>
+                    </div>
+                    <p className="text-xs text-zinc-600 flex-shrink-0">
+                      {new Date(s.createdAt).toLocaleTimeString()}
+                    </p>
+                  </div>
+                  <p className="text-sm text-zinc-300 mt-2 whitespace-pre-wrap break-words">
+                    {isExpanded ? s.body : preview}
+                  </p>
+                  {s.body.length > 120 && (
+                    <button
+                      type="button"
+                      onClick={toggle}
+                      className="text-xs text-blue-400 hover:text-blue-300 mt-1 transition-colors"
+                    >
+                      {isExpanded ? "Show less" : "Show more"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

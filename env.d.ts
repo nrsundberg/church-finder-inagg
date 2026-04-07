@@ -8,6 +8,8 @@ declare global {
     SCRAPE_TOKEN: string;
     CF_API_TOKEN: string;
     ADMIN_PASSWORD: string;
+    CF_TURNSTILE_SECRET_KEY: string;
+    CF_TURNSTILE_SITE_KEY: string;
   }
 }
 

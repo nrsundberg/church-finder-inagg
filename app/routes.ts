@@ -6,6 +6,7 @@ export default [
   route("about", "routes/about.tsx"),
   route("sitemap.xml", "routes/sitemap[.]xml.ts"),
   route("api/scrape", "routes/api/scrape.ts"),
+  route("api/submit", "routes/api/submit.ts"),
   route("api/geocode-suggest", "routes/api/geocode-suggest.ts"),
   route("api/live-search", "routes/api/live-search.ts"),
 ] satisfies RouteConfig;

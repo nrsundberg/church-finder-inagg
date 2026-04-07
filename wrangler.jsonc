@@ -17,6 +17,9 @@
   "triggers": {
     "crons": ["0 3 * * *"]
   },
+  "vars": {
+    "CF_TURNSTILE_SITE_KEY": "0x4AAAAAAC1sDfCMB0C-REKK"
+  },
   "routes": [
     { "pattern": "basedchurchfinder.com", "custom_domain": true },
     { "pattern": "www.basedchurchfinder.com", "custom_domain": true }
