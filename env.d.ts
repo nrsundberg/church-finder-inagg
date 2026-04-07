@@ -6,6 +6,8 @@ declare global {
   interface Env {
     D1_DATABASE: D1Database;
     SCRAPE_TOKEN: string;
+    CF_API_TOKEN: string;
+    ADMIN_PASSWORD: string;
   }
 }
 

@@ -121,31 +121,21 @@ async function fetchPage(
   }
 }
 
-export async function scrapeSbcBatch(
-  _startPage: number,
-  nonce: string | null,
-): Promise<SbcScrapeResult> {
-  const currentNonce = nonce || (await fetchNonce());
-  if (!currentNonce) {
-    return { churches: [], currentPage: 0, totalPages: 0, done: false, nonce: "" };
-  }
+export async function scrapeSbcPages(
+  fromPage: number,
+  toPage: number,
+): Promise<{ churches: ChurchInput[]; nonce: string }> {
+  const nonce = await fetchNonce();
+  if (!nonce) return { churches: [], nonce: "" };
 
-  // Fetch page 1 first to discover totalPages
-  const first = await fetchPage(1, currentNonce, true);
-  if (!first) {
-    return { churches: [], currentPage: 1, totalPages: 0, done: false, nonce: currentNonce };
-  }
+  const churches: ChurchInput[] = [];
 
-  const totalPages = first.totalPages || 1556; // fallback to known count
-  const churches: ChurchInput[] = [...first.churches];
+  console.log(`SBC: fetching pages ${fromPage}–${toPage} with concurrency ${CONCURRENCY}`);
 
-  console.log(`SBC: ${totalPages} total pages, fetching with concurrency ${CONCURRENCY}`);
-
-  // Fetch remaining pages in parallel batches
-  for (let i = 2; i <= totalPages; i += CONCURRENCY) {
+  for (let i = fromPage; i <= toPage; i += CONCURRENCY) {
     const batch = Array.from(
-      { length: Math.min(CONCURRENCY, totalPages - i + 1) },
-      (_, k) => fetchPage(i + k, currentNonce, false),
+      { length: Math.min(CONCURRENCY, toPage - i + 1) },
+      (_, k) => fetchPage(i + k, nonce, false),
     );
     const results = await Promise.all(batch);
     for (const r of results) {
@@ -153,11 +143,5 @@ export async function scrapeSbcBatch(
     }
   }
 
-  return {
-    churches,
-    currentPage: totalPages,
-    totalPages,
-    done: true,
-    nonce: currentNonce,
-  };
+  return { churches, nonce };
 }

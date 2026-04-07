@@ -3,11 +3,11 @@ import { PrismaD1 } from "@prisma/adapter-d1";
 import { normalizeName } from "./normalize";
 import { scrapeNineMarks } from "./nine-marks";
 import { scrapeFounders } from "./founders";
-import { scrapeSbcBatch } from "./sbc";
+import { scrapeSbcPages } from "./sbc";
 import { runCrossReference } from "./cross-reference";
 import type { ChurchInput } from "./types";
 
-function getPrismaFromD1(d1: D1Database): PrismaClient {
+export function getPrismaFromD1(d1: D1Database): PrismaClient {
   const adapter = new PrismaD1(d1);
   return new PrismaClient({ adapter });
 }
@@ -138,37 +138,75 @@ export async function runScrape(d1: D1Database, source = "all", force = false): 
 
   if (source === "sbc" || source === "all") {
     const t = Date.now();
-    const SBC_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-    const lastSuccess = await prisma.scrapeLog.findFirst({
-      where: { source: "sbc", status: "success" },
-      orderBy: { startedAt: "desc" },
-    });
-    if (!force && lastSuccess && Date.now() - lastSuccess.startedAt.getTime() < SBC_TTL_MS) {
-      console.log(`SBC data is fresh (last success: ${lastSuccess.startedAt.toISOString()}), skipping`);
-      return;
+    const SBC_TOTAL_PAGES = 1556;
+    const SBC_CHUNK_SIZE = Math.ceil(SBC_TOTAL_PAGES / 4); // 389 pages per day
+    const SBC_STATE_ID = "sbc-progress";
+    const SBC_CYCLE_MS = 30 * 24 * 60 * 60 * 1000;
+
+    let state = await prisma.scrapeState.findUnique({ where: { id: SBC_STATE_ID } });
+
+    if (force) {
+      // Manual trigger: restart from page 1
+      state = await prisma.scrapeState.upsert({
+        where: { id: SBC_STATE_ID },
+        create: { id: SBC_STATE_ID, page: 1, totalPages: SBC_TOTAL_PAGES },
+        update: { page: 1, totalPages: SBC_TOTAL_PAGES },
+      });
+    } else {
+      // Cron: if cycle is complete (or never started), check 30-day TTL
+      if (!state || state.page > SBC_TOTAL_PAGES) {
+        const lastSuccess = await prisma.scrapeLog.findFirst({
+          where: { source: "sbc", status: "success" },
+          orderBy: { startedAt: "desc" },
+        });
+        if (lastSuccess && Date.now() - lastSuccess.startedAt.getTime() < SBC_CYCLE_MS) {
+          console.log(`SBC data is fresh (last success: ${lastSuccess.startedAt.toISOString()}), skipping`);
+          return;
+        }
+        // Start a new cycle
+        state = await prisma.scrapeState.upsert({
+          where: { id: SBC_STATE_ID },
+          create: { id: SBC_STATE_ID, page: 1, totalPages: SBC_TOTAL_PAGES },
+          update: { page: 1, totalPages: SBC_TOTAL_PAGES },
+        });
+      }
     }
-    console.log("Starting SBC batch scrape...");
+
+    const fromPage = state.page;
+    const toPage = Math.min(fromPage + SBC_CHUNK_SIZE - 1, SBC_TOTAL_PAGES);
+    const nextPage = toPage + 1;
+    const isLastChunk = toPage >= SBC_TOTAL_PAGES;
+
+    console.log(`Starting SBC chunk: pages ${fromPage}–${toPage} (chunk ${Math.ceil(fromPage / SBC_CHUNK_SIZE)} of 4)...`);
     const runningLog = await prisma.scrapeLog.create({
       data: { source: "sbc", status: "running" },
     });
+
     try {
-      const result = await scrapeSbcBatch(1, null);
-      const count = await batchUpsertChurches(d1, result.churches);
+      const { churches } = await scrapeSbcPages(fromPage, toPage);
+      const count = await batchUpsertChurches(d1, churches);
+
+      await prisma.scrapeState.update({
+        where: { id: SBC_STATE_ID },
+        data: { page: nextPage },
+      });
 
       await prisma.scrapeLog.update({
         where: { id: runningLog.id },
-        data: { status: "success", count, duration: Date.now() - t },
+        data: { status: isLastChunk ? "success" : "partial", count, duration: Date.now() - t },
       });
-      console.log(`SBC: upserted ${count} churches in ${Date.now() - t}ms`);
+      console.log(`SBC chunk: upserted ${count} churches (pages ${fromPage}–${toPage}) in ${Date.now() - t}ms`);
 
-      const merged = await runCrossReference(prisma);
-      console.log(`Cross-reference: merged ${merged} records`);
+      if (isLastChunk) {
+        const merged = await runCrossReference(prisma);
+        console.log(`Cross-reference: merged ${merged} records`);
+      }
     } catch (err) {
       await prisma.scrapeLog.update({
         where: { id: runningLog.id },
         data: { status: "error", error: String(err), duration: Date.now() - t },
       });
-      console.error("SBC failed:", err);
+      console.error("SBC chunk failed:", err);
     }
   }
 }
