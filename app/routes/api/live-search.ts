@@ -104,6 +104,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         }
 
         await Promise.allSettled(fetches);
+
+        // 4. Enrich SBC churches that haven't been profiled yet (phone IS NULL = not enriched)
+        try {
+          const { enrichSbcChurches } = await import("~/services/scrapers/sbc-profile");
+
+          const unenriched = await d1
+            .prepare(
+              `SELECT sbcId, sbcUrl FROM "Church"
+               WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
+                 AND isSbc = 1 AND sbcId IS NOT NULL AND sbcUrl IS NOT NULL AND phone IS NULL
+               LIMIT 20`,
+            )
+            .bind(lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta)
+            .all<{ sbcId: string; sbcUrl: string }>();
+
+          if (unenriched.results.length > 0) {
+            send("status", { source: "sbc details", loading: true });
+            for await (const _updated of enrichSbcChurches(d1, unenriched.results)) {
+              send("update", { churches: await searchChurches(prisma, lat, lng, r, min) });
+            }
+            send("status", { source: "sbc details", loading: false });
+          }
+        } catch (err) {
+          console.error("sbc-enrich error:", err);
+        }
       } catch (err) {
         console.error("live-search error:", err);
       }

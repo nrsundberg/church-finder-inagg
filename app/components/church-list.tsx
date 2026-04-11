@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ChurchCard } from "./church-card";
 import type { ChurchResult } from "~/services/search.server";
 
@@ -8,6 +9,11 @@ interface ChurchListProps {
 }
 
 export function ChurchList({ churches, selectedId, onSelect }: ChurchListProps) {
+  useEffect(() => {
+    if (selectedId === null) return;
+    const el = document.getElementById(`church-${selectedId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedId]);
   if (churches.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8 text-zinc-500">

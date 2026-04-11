@@ -1,0 +1,6 @@
+CREATE TABLE "ChurchPageCache" (
+  "sbcId"     TEXT NOT NULL PRIMARY KEY,
+  "url"       TEXT NOT NULL,
+  "html"      TEXT NOT NULL,
+  "fetchedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

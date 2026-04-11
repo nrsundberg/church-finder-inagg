@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigation } from "react-router";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { geocode } from "~/lib/geocode.server";
 import { getPrisma } from "~/db.server";
 import type { ChurchResult } from "~/services/search.server";
@@ -78,7 +79,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [liveFetching, setLiveFetching] = useState(false);
   const [liveSources, setLiveSources] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [mapFullscreen, setMapFullscreen] = useState(false);
   const esRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMapFullscreen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     if (esRef.current) {
@@ -175,7 +185,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       <main className="flex-1 overflow-hidden">
         <div className="max-w-7xl mx-auto h-full flex flex-col lg:flex-row">
-          <div className="lg:flex-1 h-[300px] lg:h-full relative">
+          <div className={mapFullscreen
+            ? "fixed inset-0 z-[2000] bg-zinc-950"
+            : "lg:flex-1 h-[45vw] min-h-[140px] max-h-[250px] lg:h-full lg:max-h-none relative"
+          }>
             {isNavigating && (
               <div className="absolute inset-0 z-[1000] bg-zinc-950/60 flex items-center justify-center">
                 <span className="text-sm text-zinc-400 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-700">
@@ -183,6 +196,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </span>
               </div>
             )}
+            <button
+              type="button"
+              onClick={() => setMapFullscreen((f) => !f)}
+              className="absolute top-2 right-2 z-[1001] bg-zinc-900/80 border border-zinc-700 rounded p-1.5 text-zinc-300 hover:text-white transition-colors"
+              title={mapFullscreen ? "Exit fullscreen" : "Fullscreen map"}
+            >
+              {mapFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
             <MapWrapper
               center={center}
               churches={churches}

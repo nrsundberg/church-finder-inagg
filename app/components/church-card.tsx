@@ -15,6 +15,7 @@ export function ChurchCard({ church, isSelected, onClick }: ChurchCardProps) {
 
   return (
     <button
+      id={`church-${church.id}`}
       type="button"
       onClick={onClick}
       className={`w-full text-left rounded-lg border p-3 transition-colors cursor-pointer ${
