@@ -25,6 +25,16 @@ function getMarkerColor(church: ChurchResult): string {
 
 function createMarkerIcon(church: ChurchResult, selected: boolean): L.DivIcon {
   const color = getMarkerColor(church);
+  if (church.coordsApproximate) {
+    const size = selected ? 20 : 14;
+    return L.divIcon({
+      className: "",
+      html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:transparent;border:2px dashed ${color};opacity:0.6"></div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, selected ? -13 : -10],
+    });
+  }
   if (selected) {
     return L.divIcon({
       className: "",
@@ -168,6 +178,9 @@ export function ChurchMap({
                 >
                   Website
                 </a>
+              )}
+              {church.coordsApproximate && (
+                <div className="text-gray-400 text-xs mt-1 italic">Approximate location</div>
               )}
             </div>
           </Popup>

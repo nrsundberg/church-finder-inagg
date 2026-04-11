@@ -137,8 +137,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const fetchingLabel = activeSources.length > 0 ? activeSources.join(" + ") : null;
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100">
-      <header className="relative z-[1001] flex-shrink-0 border-b border-zinc-800 px-4 py-3 bg-zinc-900">
+    <div className="flex flex-col lg:h-screen bg-zinc-950 text-zinc-100">
+      <header className="sticky top-0 z-[1001] flex-shrink-0 border-b border-zinc-800 px-4 py-3 bg-zinc-900">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="flex-shrink-0">
@@ -183,11 +183,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       )}
 
-      <main className="flex-1 overflow-hidden">
-        <div className="max-w-7xl mx-auto h-full flex flex-col lg:flex-row">
+      <main className="lg:flex-1 lg:overflow-hidden">
+        <div className="max-w-7xl mx-auto lg:h-full flex flex-col lg:flex-row">
           <div className={mapFullscreen
             ? "fixed inset-0 z-[2000] bg-zinc-950"
-            : "lg:flex-1 h-[45vw] min-h-[140px] max-h-[250px] lg:h-full lg:max-h-none relative"
+            : "lg:flex-1 h-[60vw] max-h-[350px] lg:h-full lg:max-h-none relative isolate"
           }>
             {isNavigating && (
               <div className="absolute inset-0 z-[1000] bg-zinc-950/60 flex items-center justify-center">
@@ -213,16 +213,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             />
           </div>
 
-          <div className="flex-1 min-h-0 lg:flex-none lg:w-96 xl:w-[420px] overflow-y-auto border-t lg:border-t-0 lg:border-l border-zinc-800">
+          <div className="lg:flex-none lg:w-96 xl:w-[420px] lg:overflow-y-auto border-t lg:border-t-0 lg:border-l border-zinc-800">
             {!query ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8 text-zinc-500">
+              <div className="flex flex-col items-center justify-center lg:h-full text-center py-16 px-8 text-zinc-500">
                 <p className="text-lg font-medium text-zinc-400">Enter a location to search</p>
                 <p className="text-sm mt-1">
                   Find churches from SBC, Founders, and 9Marks directories
                 </p>
               </div>
             ) : liveFetching && churches.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8 text-zinc-500">
+              <div className="flex flex-col items-center justify-center lg:h-full text-center py-16 px-8 text-zinc-500">
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
                 <p className="text-sm">Loading churches…</p>
               </div>

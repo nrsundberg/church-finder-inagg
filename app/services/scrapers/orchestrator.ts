@@ -65,14 +65,15 @@ function buildStatement(d1: D1Database, c: ChurchInput, now: string): D1Prepared
   return d1
     .prepare(
       `INSERT INTO "Church" (name, nameNorm, lat, lng, isSbc, sbcId, sbcUrl,
-         address, city, state, zip, phone, email, website, sourceCount, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+         address, city, state, zip, phone, email, website, sourceCount, coordsApproximate, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
        ON CONFLICT(sbcId) DO UPDATE SET
          name=excluded.name, nameNorm=excluded.nameNorm, lat=excluded.lat, lng=excluded.lng,
          address=COALESCE(excluded.address, address),
          city=COALESCE(excluded.city, city), state=COALESCE(excluded.state, state),
          zip=COALESCE(excluded.zip, zip), phone=COALESCE(excluded.phone, phone),
          website=COALESCE(excluded.website, website),
+         coordsApproximate=CASE WHEN coordsApproximate=0 THEN 0 ELSE 1 END,
          sbcUrl=excluded.sbcUrl, updatedAt=excluded.updatedAt`,
     )
     .bind(

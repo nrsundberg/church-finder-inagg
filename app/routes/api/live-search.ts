@@ -109,14 +109,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         try {
           const { enrichSbcChurches } = await import("~/services/scrapers/sbc-profile");
 
+          const enrichCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
           const unenriched = await d1
             .prepare(
-              `SELECT sbcId, sbcUrl FROM "Church"
-               WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
-                 AND isSbc = 1 AND sbcId IS NOT NULL AND sbcUrl IS NOT NULL AND phone IS NULL
+              `SELECT c.sbcId, c.sbcUrl FROM "Church" c
+               LEFT JOIN "ChurchPageCache" p ON p.sbcId = c.sbcId AND p.fetchedAt > ?
+               WHERE c.lat BETWEEN ? AND ? AND c.lng BETWEEN ? AND ?
+                 AND c.isSbc = 1 AND c.sbcId IS NOT NULL AND c.sbcUrl IS NOT NULL
+                 AND p.sbcId IS NULL
                LIMIT 20`,
             )
-            .bind(lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta)
+            .bind(enrichCutoff, lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta)
             .all<{ sbcId: string; sbcUrl: string }>();
 
           if (unenriched.results.length > 0) {

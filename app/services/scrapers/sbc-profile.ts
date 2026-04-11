@@ -124,6 +124,7 @@ export async function* enrichSbcChurches(
                phone = COALESCE(?, phone),
                email = COALESCE(?, email),
                website = COALESCE(?, website),
+               coordsApproximate = CASE WHEN ? IS NOT NULL THEN 0 ELSE coordsApproximate END,
                updatedAt = ?
              WHERE sbcId = ?`,
           )
@@ -133,6 +134,7 @@ export async function* enrichSbcChurches(
             data.phone,
             data.email,
             data.website,
+            data.lat,
             now,
             sbcId,
           )

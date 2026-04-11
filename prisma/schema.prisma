@@ -34,7 +34,8 @@ model Church {
   foundersUrl  String?
   nineMarksUrl String?
 
-  sourceCount  Int      @default(1)
+  sourceCount        Int      @default(1)
+  coordsApproximate  Boolean  @default(false)
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

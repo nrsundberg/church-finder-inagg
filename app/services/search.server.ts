@@ -19,6 +19,7 @@ export interface ChurchResult {
   foundersUrl: string | null;
   nineMarksUrl: string | null;
   sourceCount: number;
+  coordsApproximate: boolean;
   distance: number;
 }
 

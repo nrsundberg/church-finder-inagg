@@ -16,7 +16,7 @@ export function ChurchList({ churches, selectedId, onSelect }: ChurchListProps) 
   }, [selectedId]);
   if (churches.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8 text-zinc-500">
+      <div className="flex flex-col items-center justify-center lg:h-full text-center py-16 px-8 text-zinc-500">
         <p className="text-lg font-medium">No churches found</p>
         <p className="text-sm mt-1">Try expanding your search radius</p>
       </div>
