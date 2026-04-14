@@ -4,6 +4,8 @@ import { Search } from "lucide-react";
 import type { SuggestResult } from "~/lib/geocode.server";
 
 const RADIUS_OPTIONS = [
+  { value: "0.5", label: "½ mile" },
+  { value: "1", label: "1 mile" },
   { value: "5", label: "5 miles" },
   { value: "10", label: "10 miles" },
   { value: "25", label: "25 miles" },

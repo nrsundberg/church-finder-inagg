@@ -213,7 +213,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             />
           </div>
 
-          <div className="lg:flex-none lg:w-96 xl:w-[420px] lg:overflow-y-auto border-t lg:border-t-0 lg:border-l border-zinc-800">
+          <div className="max-h-[400px] overflow-y-auto lg:max-h-none lg:flex-none lg:w-96 xl:w-[420px] border-t lg:border-t-0 lg:border-l border-zinc-800">
             {!query ? (
               <div className="flex flex-col items-center justify-center lg:h-full text-center py-16 px-8 text-zinc-500">
                 <p className="text-lg font-medium text-zinc-400">Enter a location to search</p>
