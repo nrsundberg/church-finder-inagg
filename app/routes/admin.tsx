@@ -103,6 +103,12 @@ export async function action({ request, context }: Route.ActionArgs) {
     return redirect("/admin?started=sbc-scrape");
   }
 
+  if (intent === "founders-scrape") {
+    if (!session.get("authed")) return redirect("/admin");
+    await queueAndTrigger(context.cloudflare.env.D1_DATABASE, "founders-scrape", context.cloudflare.env.CF_API_TOKEN);
+    return redirect("/admin?started=founders-scrape");
+  }
+
   // Login
   const password = formData.get("password");
   if (password !== adminPassword) {
@@ -225,6 +231,12 @@ export default function Admin({ loaderData }: Route.ComponentProps) {
               description="Scrapes ~9,750 SBC churches (pages 1–389 of 1,556 total) per run. Click once to start a 4-day cycle; subsequent cron runs handle days 2–4 automatically. Full 37k refresh completes once every 30 days."
               intent="sbc-scrape"
               started={started === "sbc-scrape"}
+            />
+            <MaintenanceCard
+              title="Founders Scrape"
+              description="Queues a nationwide fetch from church.founders.org and upserts Founders churches into the database. Runs in the background (same job queue as SBC / cross-reference); check Recent Scrape Logs for status."
+              intent="founders-scrape"
+              started={started === "founders-scrape"}
             />
             <MaintenanceCard
               title="Cross-Reference Merge"

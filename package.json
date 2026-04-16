@@ -11,6 +11,7 @@
     "d1:migrate:local": "wrangler d1 migrations apply church-finder-inagg --local",
     "d1:create-migration": "wrangler d1 migrations create church-finder-inagg",
     "typecheck": "react-router typegen && tsc",
+    "test:founders": "node --import tsx --test app/services/scrapers/founders.test.ts",
     "generate-icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
@@ -42,6 +43,7 @@
     "sharp": "^0.34.5",
     "tailwindcss": "^4.2.2",
     "to-ico": "^1.1.5",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-devtools-json": "^1.0.0",

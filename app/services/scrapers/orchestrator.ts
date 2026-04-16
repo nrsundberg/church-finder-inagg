@@ -123,7 +123,7 @@ export async function runScrape(d1: D1Database, source = "all", force = false): 
     const t = Date.now();
     console.log("Starting Founders scrape...");
     try {
-      const churches = await scrapeFounders();
+      const churches = await scrapeFounders(39.8283, -98.5795, 5000, { failIfEmpty: true });
       const count = await batchUpsertChurches(d1, churches);
       await prisma.scrapeLog.create({
         data: { source: "founders", status: "success", count, duration: Date.now() - t },

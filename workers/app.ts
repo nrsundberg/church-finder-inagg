@@ -50,6 +50,11 @@ export default {
         ctx.waitUntil(runScrape(env.D1_DATABASE, "sbc", true));
         return;
       }
+
+      if (row.nonce === "founders-scrape") {
+        ctx.waitUntil(runScrape(env.D1_DATABASE, "founders", true));
+        return;
+      }
     }
 
     // Normal daily cron
