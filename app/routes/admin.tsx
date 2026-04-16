@@ -105,7 +105,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (intent === "founders-scrape") {
     if (!session.get("authed")) return redirect("/admin");
-    await queueAndTrigger(context.cloudflare.env.D1_DATABASE, "founders-scrape", context.cloudflare.env.CF_API_TOKEN);
+    // Run on this Worker via waitUntil (same pattern as /api/scrape). Do not rely on D1 + schedules/trigger —
+    // the Cloudflare API call often fails silently (wrong/missing CF_API_TOKEN) and never invokes scheduled().
+    const { runScrape } = await import("~/services/scrapers/orchestrator");
+    context.cloudflare.ctx.waitUntil(
+      runScrape(context.cloudflare.env.D1_DATABASE, "founders", true),
+    );
     return redirect("/admin?started=founders-scrape");
   }
 
@@ -234,7 +239,7 @@ export default function Admin({ loaderData }: Route.ComponentProps) {
             />
             <MaintenanceCard
               title="Founders Scrape"
-              description="Queues a nationwide fetch from church.founders.org and upserts Founders churches into the database. Runs in the background (same job queue as SBC / cross-reference); check Recent Scrape Logs for status."
+              description="Starts a nationwide fetch from church.founders.org on this Worker (runs in the background after the page loads). Check Recent Scrape Logs for status."
               intent="founders-scrape"
               started={started === "founders-scrape"}
             />
