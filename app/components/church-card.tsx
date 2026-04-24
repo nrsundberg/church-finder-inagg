@@ -1,25 +1,47 @@
+import { useEffect, useRef } from "react";
 import { ArrowRight, ExternalLink, Globe, MapPin, Phone } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { SourceBadge } from "./source-badge";
 import type { ChurchResult } from "~/services/search.server";
 
+const HOVER_SELECT_DELAY_MS = 140;
+
 interface ChurchCardProps {
   church: ChurchResult;
   isSelected: boolean;
-  onClick: () => void;
+  onSelect: () => void;
 }
 
-export function ChurchCard({ church, isSelected, onClick }: ChurchCardProps) {
+export function ChurchCard({ church, isSelected, onSelect }: ChurchCardProps) {
   const location = useLocation();
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const address = [church.address, church.city, church.state, church.zip]
     .filter(Boolean)
     .join(", ");
   const detailHref = location.search ? `/church/${church.id}${location.search}` : `/church/${church.id}`;
 
+  const clearHoverSelect = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
+  const queueHoverSelect = () => {
+    clearHoverSelect();
+    hoverTimeoutRef.current = setTimeout(() => {
+      onSelect();
+      hoverTimeoutRef.current = null;
+    }, HOVER_SELECT_DELAY_MS);
+  };
+
+  useEffect(() => clearHoverSelect, []);
+
   return (
     <article
       id={`church-${church.id}`}
-      onMouseEnter={onClick}
+      onPointerEnter={queueHoverSelect}
+      onPointerLeave={clearHoverSelect}
       className={`group relative w-full cursor-pointer rounded-lg border p-3 text-left transition-colors ${
         isSelected
           ? "border-blue-500 bg-blue-950/30"
@@ -28,8 +50,8 @@ export function ChurchCard({ church, isSelected, onClick }: ChurchCardProps) {
     >
       <Link
         to={detailHref}
-        onClick={onClick}
-        onFocus={onClick}
+        onClick={onSelect}
+        onFocus={onSelect}
         className="absolute inset-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
         aria-label={`View details for ${church.name}`}
       >

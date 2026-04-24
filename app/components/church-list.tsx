@@ -5,15 +5,22 @@ import type { ChurchResult } from "~/services/search.server";
 interface ChurchListProps {
   churches: ChurchResult[];
   selectedId: number | null;
+  scrollSelectedIntoView: boolean;
   onSelect: (church: ChurchResult) => void;
 }
 
-export function ChurchList({ churches, selectedId, onSelect }: ChurchListProps) {
+export function ChurchList({
+  churches,
+  selectedId,
+  scrollSelectedIntoView,
+  onSelect,
+}: ChurchListProps) {
   useEffect(() => {
+    if (!scrollSelectedIntoView) return;
     if (selectedId === null) return;
     const el = document.getElementById(`church-${selectedId}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [selectedId]);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [scrollSelectedIntoView, selectedId]);
 
   if (churches.length === 0) {
     return (
@@ -43,7 +50,7 @@ export function ChurchList({ churches, selectedId, onSelect }: ChurchListProps) 
           key={church.id}
           church={church}
           isSelected={church.id === selectedId}
-          onClick={() => onSelect(church)}
+          onSelect={() => onSelect(church)}
         />
       ))}
     </div>

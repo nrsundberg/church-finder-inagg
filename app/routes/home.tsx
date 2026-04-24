@@ -15,6 +15,8 @@ type SourceFreshness = {
   nineMarks: string | null;
 };
 
+type SelectionOrigin = "list" | "map" | null;
+
 const MIN_RADIUS_MILES = 0.5;
 const MAX_RADIUS_MILES = 100;
 const DEFAULT_RADIUS_MILES = 25;
@@ -130,6 +132,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [liveFetching, setLiveFetching] = useState(false);
   const [liveSources, setLiveSources] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectionOrigin, setSelectionOrigin] = useState<SelectionOrigin>(null);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const esRef = useRef<EventSource | null>(null);
 
@@ -148,6 +151,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }
     setChurches([]);
     setSelectedId(null);
+    setSelectionOrigin(null);
     setLiveSources({});
 
     if (!center) return;
@@ -272,7 +276,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               churches={churches}
               radius={radius}
               selectedId={selectedId}
-              onSelect={(c) => setSelectedId(c.id)}
+              onSelect={(c) => {
+                setSelectionOrigin("map");
+                setSelectedId(c.id);
+              }}
             />
           </div>
 
@@ -293,7 +300,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <ChurchList
                 churches={churches}
                 selectedId={selectedId}
-                onSelect={(c) => setSelectedId(c.id)}
+                scrollSelectedIntoView={selectionOrigin === "map"}
+                onSelect={(c) => {
+                  setSelectionOrigin("list");
+                  setSelectedId(c.id);
+                }}
               />
             )}
           </div>
