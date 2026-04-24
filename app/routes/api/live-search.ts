@@ -15,6 +15,7 @@ const LONGITUDE_DIVISOR_FLOOR = 0.01;
 const LIVE_REFRESH_WINDOW_MS = 60 * 1000;
 const LIVE_REFRESH_LIMIT = 10;
 const LIVE_REFRESH_TILE_DEGREES = 0.25;
+const EMPTY_RESULT_LIVE_REFRESH_MIN_RADIUS_MILES = 5;
 
 // Best-effort per-isolate guardrails to reduce duplicate live refresh fan-out.
 const liveRefreshesByIp = new Map<string, number[]>();
@@ -159,6 +160,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
             }),
         ]);
         send("update", { churches: cached });
+
+        // Tiny empty searches should resolve quickly instead of fanning out
+        // slow directory refreshes for a result set that is likely empty.
+        if (cached.length === 0 && r < EMPTY_RESULT_LIVE_REFRESH_MIN_RADIUS_MILES) {
+          send("done", {});
+          close();
+          return;
+        }
 
         // 2. Check per-source freshness (SBC is cron-only, not live-fetched)
         const cutoff = new Date(Date.now() - STALE_MS).toISOString();

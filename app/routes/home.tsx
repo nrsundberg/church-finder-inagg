@@ -129,6 +129,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const isNavigating = navigation.state === "loading";
 
   const [churches, setChurches] = useState<ChurchResult[]>([]);
+  const [hasLiveResult, setHasLiveResult] = useState(false);
   const [liveFetching, setLiveFetching] = useState(false);
   const [liveSources, setLiveSources] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -150,6 +151,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       esRef.current = null;
     }
     setChurches([]);
+    setHasLiveResult(false);
     setSelectedId(null);
     setSelectionOrigin(null);
     setLiveSources({});
@@ -164,6 +166,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     es.addEventListener("update", (e) => {
       const { churches: c } = JSON.parse(e.data) as { churches: ChurchResult[] };
       setChurches(c);
+      setHasLiveResult(true);
     });
 
     es.addEventListener("status", (e) => {
@@ -291,7 +294,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   Find churches from SBC, Founders, and 9Marks directories
                 </p>
               </div>
-            ) : liveFetching && churches.length === 0 ? (
+            ) : liveFetching && !hasLiveResult ? (
               <div className="flex flex-col items-center justify-center lg:h-full text-center py-16 px-8 text-zinc-500">
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
                 <p className="text-sm">Loading churches…</p>
