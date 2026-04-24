@@ -4,6 +4,7 @@ export default [
   index("routes/home.tsx"),
   route("admin", "routes/admin.tsx"),
   route("about", "routes/about.tsx"),
+  route("church/:id", "routes/church.$id.tsx"),
   route("sitemap.xml", "routes/sitemap[.]xml.ts"),
   route("api/scrape", "routes/api/scrape.ts"),
   route("api/submit", "routes/api/submit.ts"),

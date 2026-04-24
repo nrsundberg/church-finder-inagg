@@ -25,7 +25,7 @@ const jsonLd = JSON.stringify({
 });
 
 export async function loader({ context }: Route.LoaderArgs) {
-  return { turnstileSiteKey: context.cloudflare.env.CF_TURNSTILE_SITE_KEY ?? "" };
+  return { turnstileSiteKey: context.cloudflare?.env?.CF_TURNSTILE_SITE_KEY ?? "" };
 }
 
 export const meta: Route.MetaFunction = () => [

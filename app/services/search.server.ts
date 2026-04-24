@@ -20,6 +20,7 @@ export interface ChurchResult {
   nineMarksUrl: string | null;
   sourceCount: number;
   coordsApproximate: boolean;
+  updatedAt: string;
   distance: number;
 }
 
@@ -130,6 +131,7 @@ export async function searchChurches(
   const withDistance = churches
     .map((c) => ({
       ...c,
+      updatedAt: c.updatedAt.toISOString(),
       distance: haversine(lat, lng, c.lat, c.lng),
     }))
     .filter((c) => c.distance <= radiusMiles)

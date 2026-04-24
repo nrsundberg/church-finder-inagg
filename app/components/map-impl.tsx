@@ -15,6 +15,13 @@ L.Icon.Default.mergeOptions({
 
 const MILES_TO_METERS = 1609.34;
 
+function formatUpdatedAge(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "Updated today";
+  if (days === 1) return "Updated yesterday";
+  return `Updated ${days}d ago`;
+}
+
 function getMarkerColor(church: ChurchResult): string {
   if (church.sourceCount >= 3) return "#10b981"; // green - all 3
   if (church.sourceCount >= 2) return "#3b82f6"; // blue - 2 sources
@@ -169,6 +176,10 @@ export function ChurchMap({
                   </span>
                 )}
               </div>
+              <div className="text-gray-500 text-xs mt-1">
+                {church.coordsApproximate ? "Approximate city-level pin" : "Exact pin"}
+              </div>
+              <div className="text-gray-500 text-xs mt-1">{formatUpdatedAge(church.updatedAt)}</div>
               {church.website && (
                 <a
                   href={church.website}
@@ -178,9 +189,6 @@ export function ChurchMap({
                 >
                   Website
                 </a>
-              )}
-              {church.coordsApproximate && (
-                <div className="text-gray-400 text-xs mt-1 italic">Approximate location</div>
               )}
             </div>
           </Popup>

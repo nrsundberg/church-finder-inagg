@@ -14,6 +14,7 @@ export function ChurchList({ churches, selectedId, onSelect }: ChurchListProps) 
     const el = document.getElementById(`church-${selectedId}`);
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedId]);
+
   if (churches.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center lg:h-full text-center py-16 px-8 text-zinc-500">
@@ -23,10 +24,19 @@ export function ChurchList({ churches, selectedId, onSelect }: ChurchListProps) 
     );
   }
 
+  const approximateCount = churches.filter((church) => church.coordsApproximate).length;
+  const exactCount = churches.length - approximateCount;
+
   return (
     <div className="flex flex-col gap-2 p-3">
       <p className="text-xs text-zinc-500 px-1">
         {churches.length} church{churches.length !== 1 ? "es" : ""} found
+      </p>
+      <p className="text-[11px] text-zinc-600 px-1">
+        {exactCount} exact pin{exactCount !== 1 ? "s" : ""}
+        {approximateCount > 0
+          ? ` · ${approximateCount} approximate`
+          : " · all map pins are exact"}
       </p>
       {churches.map((church) => (
         <ChurchCard

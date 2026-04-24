@@ -9,6 +9,33 @@ import { ChurchList } from "~/components/church-list";
 import { MapWrapper } from "~/components/map-wrapper";
 import type { Route } from "./+types/home";
 
+type SourceFreshness = {
+  sbc: string | null;
+  founders: string | null;
+  nineMarks: string | null;
+};
+
+const MIN_RADIUS_MILES = 0.5;
+const MAX_RADIUS_MILES = 100;
+const DEFAULT_RADIUS_MILES = 25;
+const MIN_SOURCE_COUNT = 1;
+const MAX_SOURCE_COUNT = 3;
+const DEFAULT_SOURCE_COUNT = 1;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseNumberParam(raw: string | null, fallback: number): number {
+  if (!raw) return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function hasValidCoords(lat: number, lng: number): boolean {
+  return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
 export const meta: Route.MetaFunction = ({ data }) => {
   const query = (data as { query?: string } | undefined)?.query;
   const title = query
@@ -23,26 +50,50 @@ export const meta: Route.MetaFunction = ({ data }) => {
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const q = url.searchParams.get("q") ?? "";
-  const r = parseInt(url.searchParams.get("r") ?? "25", 10);
-  const min = parseInt(url.searchParams.get("min") ?? "1", 10);
+  const r = clamp(
+    parseNumberParam(url.searchParams.get("r"), DEFAULT_RADIUS_MILES),
+    MIN_RADIUS_MILES,
+    MAX_RADIUS_MILES,
+  );
+  const min = clamp(
+    Math.trunc(parseNumberParam(url.searchParams.get("min"), DEFAULT_SOURCE_COUNT)),
+    MIN_SOURCE_COUNT,
+    MAX_SOURCE_COUNT,
+  );
 
   const prisma = getPrisma(context);
-  const lastSbcLog = await prisma.scrapeLog.findFirst({
-    where: { source: "sbc", status: "success" },
-    orderBy: { startedAt: "desc" },
-    select: { startedAt: true },
-  });
-  const sbcLastUpdated = lastSbcLog?.startedAt?.toISOString() ?? null;
+  const [lastSbcLog, lastFoundersLog, lastNineMarksLog] = await Promise.all([
+    prisma.scrapeLog.findFirst({
+      where: { source: "sbc", status: "success" },
+      orderBy: { startedAt: "desc" },
+      select: { startedAt: true },
+    }),
+    prisma.scrapeLog.findFirst({
+      where: { source: "founders", status: "success" },
+      orderBy: { startedAt: "desc" },
+      select: { startedAt: true },
+    }),
+    prisma.scrapeLog.findFirst({
+      where: { source: "9marks", status: "success" },
+      orderBy: { startedAt: "desc" },
+      select: { startedAt: true },
+    }),
+  ]);
+  const sourceFreshness: SourceFreshness = {
+    sbc: lastSbcLog?.startedAt?.toISOString() ?? null,
+    founders: lastFoundersLog?.startedAt?.toISOString() ?? null,
+    nineMarks: lastNineMarksLog?.startedAt?.toISOString() ?? null,
+  };
 
   if (!q) {
-    return { center: null, radius: r, minSources: min, query: "", error: null, sbcLastUpdated };
+    return { center: null, radius: r, minSources: min, query: "", error: null, sourceFreshness };
   }
 
   const qLat = parseFloat(url.searchParams.get("lat") ?? "");
   const qLng = parseFloat(url.searchParams.get("lng") ?? "");
 
   let center;
-  if (!isNaN(qLat) && !isNaN(qLng)) {
+  if (!isNaN(qLat) && !isNaN(qLng) && hasValidCoords(qLat, qLng)) {
     center = { lat: qLat, lng: qLng, displayName: q };
   } else {
     center = await geocode(q);
@@ -55,14 +106,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       minSources: min,
       query: q,
       error: `Could not find "${q}". Try a city name, state, or ZIP code.`,
-      sbcLastUpdated,
+      sourceFreshness,
     };
   }
 
-  return { center, radius: r, minSources: min, query: q, error: null, sbcLastUpdated };
+  return { center, radius: r, minSources: min, query: q, error: null, sourceFreshness };
 }
 
-function formatSbcAge(iso: string | null): string {
+function formatAge(iso: string | null): string {
   if (!iso) return "never";
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
   if (days === 0) return "today";
@@ -71,7 +122,7 @@ function formatSbcAge(iso: string | null): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { center, radius, minSources, query, error, sbcLastUpdated } = loaderData;
+  const { center, radius, minSources, query, error, sourceFreshness } = loaderData;
   const navigation = useNavigation();
   const isNavigating = navigation.state === "loading";
 
@@ -135,6 +186,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     .filter(([, v]) => v)
     .map(([k]) => k);
   const fetchingLabel = activeSources.length > 0 ? activeSources.join(" + ") : null;
+  const freshnessSummary = [
+    ["SBC", formatAge(sourceFreshness.sbc)],
+    ["Founders", formatAge(sourceFreshness.founders)],
+    ["9Marks", formatAge(sourceFreshness.nineMarks)],
+  ];
 
   return (
     <div className="flex flex-col lg:h-screen bg-zinc-950 text-zinc-100">
@@ -176,8 +232,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <span className="flex items-center gap-1">
               <span className="inline-block w-3 h-3 rounded-full bg-[#10b981]" /> All 3 sources
             </span>
-            <span className="ml-auto text-zinc-600" title="SBC data is scraped weekly and cached for 7 days">
-              SBC data: {formatSbcAge(sbcLastUpdated)} · refreshes weekly
+            <span className="flex items-center gap-1 text-zinc-600">
+              <span className="inline-block h-3 w-3 rounded-full border-2 border-dashed border-zinc-500 opacity-70" />
+              Approximate pin
+            </span>
+            <span className="ml-auto text-zinc-600" title="Shows the last successful scrape per directory">
+              {freshnessSummary.map(([label, age]) => `${label} ${age}`).join(" · ")}
+            </span>
+            <span className="w-full text-zinc-600 lg:w-auto">
+              Dashed pins mean city-level SBC coordinates that still need page-level enrichment.
             </span>
           </div>
         </div>

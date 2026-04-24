@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { Plugin } from "vite";
+import type { Plugin, UserConfig } from "vite";
 import { reactRouter } from "@react-router/dev/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -22,6 +22,16 @@ const cloudflareWasmModule: Plugin = {
   },
 };
 
+const clientEnvironmentAliases = {
+  client: {
+    resolve: {
+      alias: {
+        "~/db/client": path.resolve(process.cwd(), "app/db/browser.ts"),
+      },
+    },
+  },
+} as unknown as NonNullable<UserConfig["environments"]>;
+
 export default defineConfig((config) => {
   return {
     resolve: {
@@ -33,15 +43,7 @@ export default defineConfig((config) => {
     // In the browser bundle, swap ~/db/client for the browser-safe Prisma stub
     // (no PrismaClient, no WASM) — mirrors the .prisma/client/index-browser
     // alias pattern used in sam-barber-files for Prisma v6.
-    environments: {
-      client: {
-        resolve: {
-          alias: {
-            "~/db/client": path.resolve(process.cwd(), "app/db/browser.ts"),
-          },
-        },
-      },
-    },
+    environments: clientEnvironmentAliases,
     ssr: {
       resolve: {
         conditions: ["workerd", "browser"],
@@ -52,7 +54,7 @@ export default defineConfig((config) => {
       port: 3000,
     },
     plugins: [
-      cloudflareWasmModule,
+      ...(config.command === "build" ? [cloudflareWasmModule] : []),
       tailwindcss(),
       reactRouter(),
       tsconfigPaths(),
